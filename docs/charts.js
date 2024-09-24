@@ -61,7 +61,7 @@ function renderChart(bpData) {
 }
 
 // Fetch the CSV file from the data directory
-fetch('../data/habits.csv')
+fetch('habits.csv')
   .then(response => response.text())
   .then(csvData => parseCsvAndRenderChart(csvData))
   .catch(error => console.error('Error fetching CSV file:', error));
