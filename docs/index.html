@@ -9,10 +9,15 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
 </head>
 <body>
-    <h1>Blood Pressure Trends</h1>
+    <h1>Blood Pressure Trends and Habit Tracking</h1>
+	Go to "Habit Tracker" App by Davetech and Export Data and send to local computer.
+	<br>Make sure to have a habit called "Take Blood Pressure " and record systolic/diastolic in the memo.
+	<br>Plot whether other habits you have along with this.
+    <br>Use <a href="https://github.com/jdeck88/habits/blob/master/data/habits.csv">this file</a> as an example.
+    <!-- File Input to upload CSV -->
+    <input type="file" id="fileInput" accept=".csv" />
     <canvas id="bpChart" width="400" height="200"></canvas>
-    
-    <!-- Include the external JavaScript file for parsing CSV and rendering charts -->
+
     <script src="charts.js"></script>
 </body>
 </html>
