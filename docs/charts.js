@@ -15,12 +15,11 @@ document.getElementById('fileInput').addEventListener('change', function(event) 
 function parseCsvAndRenderChart(csvData) {
   const bpData = { dates: [], systolic: [], diastolic: [] };
   const habitData = {}; // Store each habit's completion status by date
-  const uniqueDates = new Set(); // Store all unique dates
-  const dateHabitCompletion = {}; // Store completion status of all habits for each date
+  const uniqueDates = new Set();
+  const dateHabitCompletion = {}; // Track unique habits and their completion status by date
 
-  // Use PapaParse to parse the CSV data
   Papa.parse(csvData, {
-    header: true, // Treat the first row as headers
+    header: true,
     complete: function(results) {
       results.data.forEach(row => {
         const date = row['Date'] ? row['Date'] : null;
@@ -30,15 +29,15 @@ function parseCsvAndRenderChart(csvData) {
         if (date) {
           uniqueDates.add(date);
 
-          // Initialize habit completion tracking for the date
+          // Initialize habit tracking for the date
           if (!dateHabitCompletion[date]) {
-            dateHabitCompletion[date] = { totalHabits: 0, completedHabits: 0 };
+            dateHabitCompletion[date] = { uniqueHabits: new Set(), completedHabits: new Set() };
           }
 
-          // Track total habits and completed habits per date
-          dateHabitCompletion[date].totalHabits += 1;
+          // Track unique habits for each date
+          dateHabitCompletion[date].uniqueHabits.add(habit);
           if (value > 0) {
-            dateHabitCompletion[date].completedHabits += 1;
+            dateHabitCompletion[date].completedHabits.add(habit);
           }
 
           // Extract blood pressure readings
@@ -56,19 +55,16 @@ function parseCsvAndRenderChart(csvData) {
         }
       });
 
-      // Convert uniqueDates set to a sorted array
       const sortedDates = Array.from(uniqueDates).sort();
 
-      // Create a dataset for dots where all habits were completed
+      // Create a dataset for "All Habits Completed" dots
       const allHabitsCompletedData = sortedDates.map(date => {
         const habitCompletion = dateHabitCompletion[date];
-        // Only mark a dot if all habits were completed for this date
-        return habitCompletion && habitCompletion.totalHabits === habitCompletion.completedHabits
-          ? { x: date, y: 150 } // Position the dot at y = 150 for visibility
-          : { x: date, y: null };
+        // Only mark a dot if all unique habits were completed
+        const allCompleted = habitCompletion.uniqueHabits.size === habitCompletion.completedHabits.size;
+        return allCompleted ? { x: date, y: 60 } : { x: date, y: null };
       });
 
-      // Render the chart with updated data
       renderChart(sortedDates, bpData, allHabitsCompletedData);
     },
     error: function(error) {
@@ -76,6 +72,7 @@ function parseCsvAndRenderChart(csvData) {
     }
   });
 }
+
 
 
 function renderChart(sortedDates, bpData, allHabitsCompletedData) {
@@ -126,11 +123,13 @@ function renderChart(sortedDates, bpData, allHabitsCompletedData) {
         y: {
           beginAtZero: false,
           max: 200,
+          min: 50, // Adjust min scale to show the green dots at y = 60
         },
       },
       responsive: true,
     },
   });
 }
+
 
 
