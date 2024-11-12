@@ -12,48 +12,45 @@ document.getElementById('fileInput').addEventListener('change', function(event) 
   }
 });
 
-// Function to ensure all unique dates are in place and data is consolidated for rendering
 function parseCsvAndRenderChart(csvData) {
   const bpData = { dates: [], systolic: [], diastolic: [] };
-  const habitData = {}; // Object to store each habit's completion status by date
+  const habitData = {}; // Store each habit's completion status by date
   const uniqueDates = new Set(); // Store all unique dates
+  const dateHabitCompletion = {}; // Store completion status of all habits for each date
 
   // Use PapaParse to parse the CSV data
   Papa.parse(csvData, {
     header: true, // Treat the first row as headers
     complete: function(results) {
       results.data.forEach(row => {
-        const date = row['Date'] ? row['Date'] : null; // Check if Date exists
-        const value = row['Value'] ? parseInt(row['Value']) : 0; // If Value is missing, assume 0
+        const date = row['Date'] ? row['Date'] : null;
+        const value = row['Value'] ? parseInt(row['Value']) : 0;
         const habit = row['Habit'];
 
         if (date) {
-          uniqueDates.add(date); // Add to unique date set
-        }
+          uniqueDates.add(date);
 
-        // Extract blood pressure readings (ignore missing dates for blood pressure)
-        if (habit.includes('Take Blood Pressure')) {
-          const bpValues = row['Memo'].match(/\d+\/\d+/);
-          if (bpValues && date) {
-            const [systolic, diastolic] = bpValues[0].split('/');
-            if (!bpData.dates.includes(date)) {
-              bpData.dates.push(date);
-              bpData.systolic.push(parseInt(systolic));
-              bpData.diastolic.push(parseInt(diastolic));
-            }
-          }
-        } else {
-          // For other habits, assume Value is 0 if no date exists
-          if (!habitData[habit]) {
-            habitData[habit] = [];
+          // Initialize habit completion tracking for the date
+          if (!dateHabitCompletion[date]) {
+            dateHabitCompletion[date] = { totalHabits: 0, completedHabits: 0 };
           }
 
-          // Add habit values only if date exists
-          if (date) {
-            if (value > 0) {
-              habitData[habit].push({ x: date, y: 50 }); // Scale habit value for visibility
-            } else {
-              habitData[habit].push({ x: date, y: null }); // Mark null if habit wasn't done
+          // Track total habits and completed habits per date
+          dateHabitCompletion[date].totalHabits += 1;
+          if (value > 0) {
+            dateHabitCompletion[date].completedHabits += 1;
+          }
+
+          // Extract blood pressure readings
+          if (habit.includes('Take Blood Pressure')) {
+            const bpValues = row['Memo'].match(/\d+\/\d+/);
+            if (bpValues && date) {
+              const [systolic, diastolic] = bpValues[0].split('/');
+              if (!bpData.dates.includes(date)) {
+                bpData.dates.push(date);
+                bpData.systolic.push(parseInt(systolic));
+                bpData.diastolic.push(parseInt(diastolic));
+              }
             }
           }
         }
@@ -62,8 +59,17 @@ function parseCsvAndRenderChart(csvData) {
       // Convert uniqueDates set to a sorted array
       const sortedDates = Array.from(uniqueDates).sort();
 
-      // Now render the chart with both blood pressure and habit data
-      renderChart(sortedDates, bpData, habitData);
+      // Create a dataset for dots where all habits were completed
+      const allHabitsCompletedData = sortedDates.map(date => {
+        const habitCompletion = dateHabitCompletion[date];
+        // Only mark a dot if all habits were completed for this date
+        return habitCompletion && habitCompletion.totalHabits === habitCompletion.completedHabits
+          ? { x: date, y: 150 } // Position the dot at y = 150 for visibility
+          : { x: date, y: null };
+      });
+
+      // Render the chart with updated data
+      renderChart(sortedDates, bpData, allHabitsCompletedData);
     },
     error: function(error) {
       console.error('Error parsing CSV:', error);
@@ -71,11 +77,10 @@ function parseCsvAndRenderChart(csvData) {
   });
 }
 
-// Function to render chart using Chart.js
-function renderChart(sortedDates, bpData, habitData) {
+
+function renderChart(sortedDates, bpData, allHabitsCompletedData) {
   const ctx = document.getElementById('bpChart').getContext('2d');
 
-  // Ensure the blood pressure data aligns with sorted dates
   const systolicData = sortedDates.map(date => {
     const index = bpData.dates.indexOf(date);
     return index > -1 ? bpData.systolic[index] : null;
@@ -98,38 +103,34 @@ function renderChart(sortedDates, bpData, habitData) {
       data: diastolicData,
       borderColor: 'rgba(54, 162, 235, 1)',
       fill: false,
+    },
+    {
+      label: 'All Habits Completed',
+      data: allHabitsCompletedData,
+      type: 'scatter',
+      borderColor: 'rgba(0, 200, 50, 1)',
+      backgroundColor: 'rgba(0, 200, 50, 0.7)',
+      pointRadius: 6,
+      fill: false,
     }
   ];
 
-  // Add datasets for each habit, showing "Exercise for 20 minutes" by default
-  Object.keys(habitData).forEach(habit => {
-    datasets.push({
-      label: habit, // Habit name
-      data: habitData[habit], // Habit completion status
-      type: 'scatter', // Scatter plot for habit completion
-      borderColor: habit === 'Exercise for 20 minutes' ? 'rgba(0, 200, 50, 1)' : 'rgba(0, 0, 0, 1)',
-      backgroundColor: habit === 'Exercise for 20 minutes' ? 'rgba(0, 200, 50, 0.5)' : 'rgba(0, 0, 0, 0.5)',
-      pointRadius: 5, // Customize marker size
-      fill: false,
-      hidden: habit !== 'Exercise for 20 minutes' // Show "Exercise for 20 minutes" by default
-    });
-  });
-
-  const chart = new Chart(ctx, {
+  new Chart(ctx, {
     type: 'line',
     data: {
-      labels: sortedDates, // Sorted unique dates for the x-axis
-      datasets: datasets // Combine all datasets
+      labels: sortedDates,
+      datasets: datasets,
     },
     options: {
       scales: {
         y: {
           beginAtZero: false,
-          max: 200 // Set max scale to 200 to fit blood pressure and habit scaling
-        }
+          max: 200,
+        },
       },
       responsive: true,
-    }
+    },
   });
 }
+
 
